@@ -160,7 +160,7 @@
     <vaadin-adaptive-overlay id='overlay' opened={{opened}} focus-target=[[_getFocusTarget()]]><paper-input-container opened$=[[opened]]>
         <label>[[label]]</label><input id='fullScreenInput' autocomplete='off' is='iron-input' bind-value='[[value]]' on-bind-value-changed='_fullScreenInputValueChanged'>
         <div suffix on-tap='close'><iron-icon icon='arrow-drop-down'></iron-icon><paper-ripple class='circle' center></paper-ripple></div>
-      </paper-input-container><iron-list id='selector' on-touchend="_preventDefault" on-down='_blurFullScreenInput' items='[[items]]' selected-item='[[value]]' on-selected-item-changed='_selectedItemChanged' selection-enabled>
+      </paper-input-container><iron-list id='selector' on-touchend="_preventDefault" on-down='_blurFullScreenInput' items='[[items]]' selected-item='[[value]]' on-selected-item-changed='_selectedItemChanged' selection-enabled on-touchstart='_touchStart' on-touchmove='_touchMove'>
         <template>
           <div class='item' selected$=[[selected]] focused$=[[_isItemFocused(_focusedIndex,index)]]>[[item]]</div>
         </template>
@@ -214,6 +214,29 @@
 
     ready: function() {
       this._addKeyEventListeners();
+    },
+
+    _touchStart: function(e) {
+      this._prevTouchPageY = e.pageY;
+    },
+
+    _touchMove: function(e) {
+      if (!this.$.overlay.ios) {
+        return;
+      }
+
+      // Workaround for iOS scrolling issue where touchmove would
+      // scroll the whole document when top/bottom of the iron-list
+      // was reached.
+      var selector = this.$.selector;
+      var delta = e.pageY - this._prevTouchPageY;
+      if (delta < 0 && selector.scrollTop >= selector._maxScrollTop) {
+        // Already at the bottom.
+        e.preventDefault();
+      } else if (delta > 0 && selector.scrollTop <= 0) {
+        // Already at the top.
+        e.preventDefault();
+      }
     },
 
     _getFocusTarget: function() {
@@ -346,11 +369,23 @@
     _openedChanged: function() {
       if (this.opened) {
         this._setItems(this.items);
+
+        // Assign scroll lock on iOS.
+        if (this.$.overlay.ios) {
+          this.async(function() {
+            Polymer.IronDropdownScrollManager.pushScrollLock(this.$.selector);
+          }.bind(this), 1);
+        }
       } else {
         this.$.input.bindValue = this.value;
         this.$.fullScreenInput.bindValue = this.value;
         if (this.$.overlay.fullScreen) {
           this.$.fullScreenInput.blur();
+        }
+
+        // Release assigned scroll lock on iOS.
+        if (this.$.overlay.ios) {
+          Polymer.IronDropdownScrollManager.removeScrollLock(this.$.selector);
         }
       }
     },
