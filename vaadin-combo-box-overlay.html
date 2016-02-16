@@ -72,7 +72,7 @@
               role$="[[_getAriaRole(index)]]"
               aria-selected$="[[_getAriaSelected(_focusedIndex,index)]]"
               focused$="[[_isItemFocused(_focusedIndex,index)]]">
-              [[item]]
+              [[_getItemLabel(item)]]
           </div>
         </template>
       </iron-list>
@@ -126,11 +126,33 @@
         type: Number,
         notify: true,
         computed: '_getAriaActiveIndex(_focusedIndex)'
+      },
+
+      _itemLabelPath: {
+        type: String,
+        value: 'label'
+      },
+
+      _itemValuePath: {
+        type: String,
+        value: 'value'
       }
     },
 
     ready: function() {
       this._patchWheelOverScrolling();
+    },
+
+    _getItemLabel: function(item) {
+      var label = this.get(this._itemLabelPath, item);
+      if (label == null) label = item != null ? item.toString() : '';
+      return label;
+    },
+
+    _getItemValue: function(item) {
+      var value = this.get(this._itemValuePath, item);
+      if (value == null) value = value != null ? value.toString() : '';
+      return value;
     },
 
     _isItemFocused: function(focusedIndex, itemIndex) {
